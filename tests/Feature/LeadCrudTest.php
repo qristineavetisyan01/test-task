@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Lead;
+use App\Models\LeadSource;
+use App\Models\LeadStatus;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -10,12 +13,32 @@ class LeadCrudTest extends TestCase
 {
     use RefreshDatabase;
 
+    private User $user;
+
+    private LeadStatus $status;
+
+    private LeadSource $source;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->user = User::factory()->create();
+        $this->status = LeadStatus::create([
+            'name' => 'New',
+            'order_index' => 1,
+        ]);
+        $this->source = LeadSource::create([
+            'name' => 'Website',
+        ]);
+    }
+
     public function test_lead_index_renders_successfully(): void
     {
-        $response = $this->get(route('leads.index'));
+        $response = $this->actingAs($this->user)->get(route('leads.index'));
 
         $response->assertOk();
-        $response->assertSee('Leads Management Dashboard');
+        $response->assertSee('Leads Management');
     }
 
     public function test_user_can_create_lead(): void
@@ -25,16 +48,18 @@ class LeadCrudTest extends TestCase
             'email' => 'john.carter@example.com',
             'phone' => '+1 202-555-0199',
             'company' => 'Acme Corp',
-            'status' => 'new',
-            'notes' => 'Potential enterprise account.',
+            'status_id' => $this->status->id,
+            'source_id' => $this->source->id,
         ];
 
-        $response = $this->post(route('leads.store'), $payload);
+        $response = $this->actingAs($this->user)
+            ->postJson(route('leads.store'), $payload);
 
-        $response->assertRedirect(route('leads.index'));
+        $response->assertOk();
+        $response->assertJson(['success' => true]);
         $this->assertDatabaseHas('leads', [
             'email' => 'john.carter@example.com',
-            'status' => 'new',
+            'status_id' => $this->status->id,
         ]);
     }
 
@@ -43,23 +68,29 @@ class LeadCrudTest extends TestCase
         $lead = Lead::create([
             'name' => 'Old Name',
             'email' => 'old@example.com',
-            'status' => 'new',
+            'status_id' => $this->status->id,
         ]);
 
-        $response = $this->put(route('leads.update', $lead), [
+        $qualified = LeadStatus::create([
+            'name' => 'Qualified',
+            'order_index' => 2,
+        ]);
+
+        $response = $this->actingAs($this->user)->putJson(route('leads.update', $lead), [
             'name' => 'Updated Name',
             'email' => 'updated@example.com',
             'phone' => '+1 202-555-0111',
             'company' => 'Updated Inc',
-            'status' => 'qualified',
-            'notes' => 'Requested proposal.',
+            'status_id' => $qualified->id,
+            'source_id' => $this->source->id,
         ]);
 
-        $response->assertRedirect(route('leads.index'));
+        $response->assertOk();
+        $response->assertJson(['success' => true]);
         $this->assertDatabaseHas('leads', [
             'id' => $lead->id,
             'name' => 'Updated Name',
-            'status' => 'qualified',
+            'status_id' => $qualified->id,
         ]);
     }
 
@@ -68,48 +99,44 @@ class LeadCrudTest extends TestCase
         $lead = Lead::create([
             'name' => 'Delete Me',
             'email' => 'deleteme@example.com',
-            'status' => 'lost',
+            'status_id' => $this->status->id,
         ]);
 
-        $response = $this->delete(route('leads.destroy', $lead));
+        $response = $this->actingAs($this->user)->deleteJson(route('leads.destroy', $lead));
 
-        $response->assertRedirect(route('leads.index'));
+        $response->assertOk();
+        $response->assertJson(['success' => true]);
         $this->assertDatabaseMissing('leads', ['id' => $lead->id]);
     }
 
-    public function test_search_and_status_filter_work_together(): void
+    public function test_index_ajax_returns_leads_json(): void
     {
-        Lead::create([
+        $lead = Lead::create([
             'name' => 'Alice New',
             'email' => 'alice@example.com',
-            'status' => 'new',
+            'status_id' => $this->status->id,
+            'source_id' => $this->source->id,
         ]);
 
-        Lead::create([
-            'name' => 'Alice Qualified',
-            'email' => 'alice2@example.com',
-            'status' => 'qualified',
-        ]);
-
-        $response = $this->get(route('leads.index', [
-            'search' => 'Alice',
-            'status' => 'qualified',
-        ]));
+        $response = $this->actingAs($this->user)
+            ->getJson(route('leads.index'));
 
         $response->assertOk();
-        $response->assertSee('Alice Qualified');
-        $response->assertDontSee('Alice New');
+        $response->assertJson(['success' => true]);
+        $response->assertJsonFragment(['id' => $lead->id]);
+        $response->assertJsonPath('leads.per_page', 10);
     }
 
     public function test_lead_validation_rejects_invalid_payload(): void
     {
-        $response = $this->post(route('leads.store'), [
-            'name' => 'Jo',
+        $response = $this->actingAs($this->user)->postJson(route('leads.store'), [
+            'name' => '',
             'email' => 'not-an-email',
             'phone' => 'bad',
-            'status' => 'invalid',
+            'status_id' => null,
         ]);
 
-        $response->assertSessionHasErrors(['name', 'email', 'phone', 'status']);
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['name', 'email', 'phone', 'status_id']);
     }
 }

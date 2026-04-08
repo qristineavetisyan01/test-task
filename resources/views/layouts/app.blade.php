@@ -5,39 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Leads Dashboard')</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased">
-    <div class="min-h-screen lg:flex">
-        <aside class="bg-slate-900 text-slate-100 w-full lg:w-64 p-6">
-            <div class="mb-8">
-                <h1 class="text-2xl font-bold">LeadFlow</h1>
-                <p class="text-slate-400 text-sm mt-1">Sales workspace</p>
-            </div>
-            <nav class="space-y-2">
-                <a
-                    href="{{ route('leads.index') }}"
-                    class="block px-3 py-2 rounded-lg transition {{ request()->routeIs('leads.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}"
-                >
-                    Leads Dashboard
-                </a>
-            </nav>
-        </aside>
-        <div class="flex-1">
-            <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-4">
-                <h2 class="text-xl sm:text-2xl font-semibold">@yield('heading', 'Leads Dashboard')</h2>
-            </header>
-            <main class="p-4 sm:p-6">
-                @yield('content')
-            </main>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg bg-dark navbar-dark">
+        <div class="container">
+            <a class="navbar-brand fw-semibold" href="{{ route('dashboard') }}">CRM Dashboard</a>
+            @auth
+                <div class="ms-auto d-flex gap-2">
+                    <a class="btn btn-outline-light btn-sm" href="{{ route('dashboard') }}">Dashboard</a>
+                    <a class="btn btn-outline-light btn-sm" href="{{ route('leads.index') }}">Leads</a>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button class="btn btn-danger btn-sm" type="submit">Logout</button>
+                    </form>
+                </div>
+            @endauth
         </div>
-    </div>
+    </nav>
 
-    <div id="toast-container" class="fixed top-4 right-4 z-[70] space-y-2"></div>
-
-    @if (session('success'))
-        <div id="initial-toast" class="hidden" data-message="{{ session('success') }}"></div>
-    @endif
+    <main class="py-4">
+        <div class="container">
+            <h1 class="h3 mb-4">@yield('heading', 'Dashboard')</h1>
+            @yield('content')
+        </div>
+    </main>
 
     @yield('scripts')
 </body>

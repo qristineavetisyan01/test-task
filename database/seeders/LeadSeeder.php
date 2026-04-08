@@ -3,6 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\Lead;
+use App\Models\LeadSource;
+use App\Models\LeadStatus;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class LeadSeeder extends Seeder
@@ -12,7 +15,9 @@ class LeadSeeder extends Seeder
      */
     public function run(): void
     {
-        $statuses = Lead::STATUSES;
+        $statusIds = LeadStatus::orderBy('order_index')->pluck('id')->all();
+        $sourceIds = LeadSource::pluck('id')->all();
+        $user = User::first();
 
         $sampleLeads = [
             ['name' => 'Ava Mitchell', 'email' => 'ava.mitchell@northpeak.io', 'phone' => '+1 202-555-0112', 'company' => 'NorthPeak Labs'],
@@ -40,8 +45,9 @@ class LeadSeeder extends Seeder
         foreach ($sampleLeads as $index => $lead) {
             Lead::create([
                 ...$lead,
-                'status' => $statuses[$index % count($statuses)],
-                'notes' => fake()->sentence(10),
+                'status_id' => $statusIds[$index % count($statusIds)],
+                'source_id' => $sourceIds[$index % count($sourceIds)] ?? null,
+                'assigned_to' => $user?->id,
             ]);
         }
     }

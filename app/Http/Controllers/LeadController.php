@@ -5,95 +5,103 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreLeadRequest;
 use App\Http\Requests\UpdateLeadRequest;
 use App\Models\Lead;
-use App\Services\LeadService;
+use App\Models\LeadSource;
+use App\Models\LeadStatus;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class LeadController extends Controller
 {
-    public function __construct(private readonly LeadService $leadService) {}
-
     public function index(Request $request): View|JsonResponse
     {
-        $filters = [
-            'search' => $request->string('search')->toString(),
-            'status' => $request->string('status')->toString(),
-        ];
+        $query = Lead::with(['status', 'source', 'assignedUser'])->latest();
 
-        $leads = $this->leadService->paginated($filters);
+        if ($request->filled('search')) {
+            $search = $request->string('search')->toString();
+            $query->where(function ($builder) use ($search): void {
+                $builder
+                    ->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('company', 'like', "%{$search}%");
+            });
+        }
 
-        if ($request->ajax()) {
+        if ($request->filled('status_id')) {
+            $query->where('status_id', $request->integer('status_id'));
+        }
+
+        $leads = $query->paginate(10)->withQueryString();
+
+        if (request()->ajax() || request()->expectsJson()) {
             return response()->json([
-                'html' => view('leads._table', compact('leads'))->render(),
+                'success' => true,
+                'leads' => $leads,
             ]);
         }
 
-        return view('leads.index', compact('leads', 'filters'));
-    }
-
-    public function create(): View
-    {
         return view('leads.index', [
-            'leads' => $this->leadService->paginated(['search' => '', 'status' => '']),
-            'filters' => ['search' => '', 'status' => ''],
+            'leads' => $leads,
+            'statuses' => LeadStatus::orderBy('order_index')->get(),
+            'sources' => LeadSource::orderBy('name')->get(),
         ]);
     }
 
-    public function store(StoreLeadRequest $request): RedirectResponse|JsonResponse
+    public function create(): JsonResponse
     {
-        $lead = Lead::create($request->validated());
-
-        if ($request->expectsJson()) {
-            return response()->json([
-                'message' => 'Lead created successfully.',
-                'lead' => $lead,
-            ]);
-        }
-
-        return redirect()
-            ->route('leads.index')
-            ->with('success', 'Lead created successfully.');
+        return response()->json([
+            'success' => true,
+        ]);
     }
 
-    public function edit(Lead $lead): RedirectResponse|JsonResponse
+    public function store(StoreLeadRequest $request): JsonResponse
     {
-        if (request()->expectsJson()) {
-            return response()->json(['lead' => $lead]);
-        }
+        $lead = Lead::create([
+            ...$request->validated(),
+            'assigned_to' => auth()->id(),
+        ]);
 
-        return redirect()->route('leads.index');
+        return response()->json([
+            'success' => true,
+            'message' => 'Lead created successfully.',
+            'lead' => $lead->load(['status', 'source', 'assignedUser']),
+        ]);
     }
 
-    public function update(UpdateLeadRequest $request, Lead $lead): RedirectResponse|JsonResponse
+    public function edit(Lead $lead): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'lead' => $lead->load(['status', 'source', 'assignedUser']),
+        ]);
+    }
+
+    public function show(Lead $lead): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'lead' => $lead->load(['status', 'source', 'assignedUser', 'activities']),
+        ]);
+    }
+
+    public function update(UpdateLeadRequest $request, Lead $lead): JsonResponse
     {
         $lead->update($request->validated());
 
-        if ($request->expectsJson()) {
-            return response()->json([
-                'message' => 'Lead updated successfully.',
-                'lead' => $lead->fresh(),
-            ]);
-        }
-
-        return redirect()
-            ->route('leads.index')
-            ->with('success', 'Lead updated successfully.');
+        return response()->json([
+            'success' => true,
+            'message' => 'Lead updated successfully.',
+            'lead' => $lead->fresh()->load(['status', 'source', 'assignedUser']),
+        ]);
     }
 
-    public function destroy(Request $request, Lead $lead): JsonResponse|RedirectResponse
+    public function destroy(Lead $lead): JsonResponse
     {
         $lead->delete();
 
-        if ($request->ajax()) {
-            return response()->json([
-                'message' => 'Lead deleted successfully.',
-            ]);
-        }
-
-        return redirect()
-            ->route('leads.index')
-            ->with('success', 'Lead deleted successfully.');
+        return response()->json([
+            'success' => true,
+            'message' => 'Lead deleted successfully.',
+        ]);
     }
 }
