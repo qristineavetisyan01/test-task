@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LeadController;
 use Illuminate\Http\Request;
@@ -40,4 +41,5 @@ Route::post('/logout', function (Request $request) {
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::resource('leads', LeadController::class);
+    Route::resource('activities', ActivityController::class)->only(['index', 'store', 'destroy']);
 });

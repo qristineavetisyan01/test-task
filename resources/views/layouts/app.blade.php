@@ -17,6 +17,7 @@
                 <div class="ms-auto d-flex gap-2">
                     <a class="btn btn-outline-light btn-sm" href="{{ route('dashboard') }}">Dashboard</a>
                     <a class="btn btn-outline-light btn-sm" href="{{ route('leads.index') }}">Leads</a>
+                    <a class="btn btn-outline-light btn-sm" href="{{ route('activities.index') }}">Activities</a>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
                         <button class="btn btn-danger btn-sm" type="submit">Logout</button>
