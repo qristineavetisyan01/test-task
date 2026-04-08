@@ -35,26 +35,47 @@ class LeadController extends Controller
 
     public function create(): View
     {
-        return view('leads.create');
+        return view('leads.index', [
+            'leads' => $this->leadService->paginated(['search' => '', 'status' => '']),
+            'filters' => ['search' => '', 'status' => ''],
+        ]);
     }
 
-    public function store(StoreLeadRequest $request): RedirectResponse
+    public function store(StoreLeadRequest $request): RedirectResponse|JsonResponse
     {
-        Lead::create($request->validated());
+        $lead = Lead::create($request->validated());
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Lead created successfully.',
+                'lead' => $lead,
+            ]);
+        }
 
         return redirect()
             ->route('leads.index')
             ->with('success', 'Lead created successfully.');
     }
 
-    public function edit(Lead $lead): View
+    public function edit(Lead $lead): RedirectResponse|JsonResponse
     {
-        return view('leads.edit', compact('lead'));
+        if (request()->expectsJson()) {
+            return response()->json(['lead' => $lead]);
+        }
+
+        return redirect()->route('leads.index');
     }
 
-    public function update(UpdateLeadRequest $request, Lead $lead): RedirectResponse
+    public function update(UpdateLeadRequest $request, Lead $lead): RedirectResponse|JsonResponse
     {
         $lead->update($request->validated());
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Lead updated successfully.',
+                'lead' => $lead->fresh(),
+            ]);
+        }
 
         return redirect()
             ->route('leads.index')
