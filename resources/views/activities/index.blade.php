@@ -85,11 +85,14 @@
                                         <td>{{ $activity->description }}</td>
                                         <td>{{ $activity->created_at->format('Y-m-d H:i') }}</td>
                                         <td>
-                                            <form method="POST" action="{{ route('activities.destroy', $activity) }}" onsubmit="return confirm('Delete this activity?')">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button class="btn btn-sm btn-outline-danger">Delete</button>
-                                            </form>
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm btn-outline-danger js-delete-activity"
+                                                data-delete-url="{{ route('activities.destroy', $activity) }}"
+                                                data-lead-name="{{ $activity->lead?->name }}"
+                                            >
+                                                Delete
+                                            </button>
                                         </td>
                                     </tr>
                                 @empty
@@ -108,4 +111,43 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="deleteActivityModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Activity</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Are you sure you want to delete this activity for <strong id="activityLeadName">this lead</strong>?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <form id="deleteActivityForm" method="POST">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+@endsection
+
+@section('scripts')
+    <script>
+        $(function () {
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteActivityModal'));
+
+            $(document).on('click', '.js-delete-activity', function () {
+                const deleteUrl = $(this).data('delete-url');
+                const leadName = $(this).data('lead-name') || 'this lead';
+
+                $('#deleteActivityForm').attr('action', deleteUrl);
+                $('#activityLeadName').text(leadName);
+                deleteModal.show();
+            });
+        });
+    </script>
 @endsection
